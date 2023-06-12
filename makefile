@@ -12,6 +12,7 @@ TIME_FORMAT	= %Y-%m-%dT%H-%M-%S
 
 # Create a backup.
 backup:
+	[[ -z $$(find $(DIR_MASTER)/ -xtype l) ]];	# Check for dangling symlinks, which are probably unintended & which rsync can't follow.
 	@[[ -z $$(ls '$(DIR_BACKUP)') ]] || sudo btrfs subvolume snapshot -r -- '$(DIR_BACKUP)/' $(DIR_SNAPSHOTS)/$$(date '+$(TIME_FORMAT)');	# Create a readonly snapshot.
 	rsync --verbose --archive --update --exclude-from '$(FILE_EXCLUSIONS)' --delete --copy-links -- $(DIR_MASTER)/ './$(DIR_BACKUP)/'	# Sync the backup, following symlinks.
 
