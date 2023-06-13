@@ -8,6 +8,7 @@ The requirements are Bash, make, LUKS & Btrfs.
 
 ## Documentation
 
+The documentation is in the product's "**man/**" directory.
 See [Flashback](https://functionalley.com/Storage/flashback.html)
 
 ## License

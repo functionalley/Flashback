@@ -1,0 +1,137 @@
+.TH formatForBackup 1
+.SH NAME
+\fBformatForBackup\fR - Formats a storage-device for use in a backup-strategy.
+.SH SYNOPSIS
+\fBformatForBackup.bash\fR [\fIOPTIONS\fR] \fIdevice-name\fR
+.SH DESCRIPTION
+.PP
+Formats the specified storage-device with a \fBBtrfs\fR-filesystem on a \fBLUKS\fR storage-volume.
+.IP \(bu
+The use of \fBBtrfs\fR permits snapshots to be used to record previous versions of a backup.
+.IP \(bu
+The use of \fBLUKS\fR enables the whole device to be encrypted to safe-guard the user's data should the storage-device be lost.
+.IP \(bu
+\fIdevice-name\fR can be merely a partition on a storage-device rather than the whole device.
+.IP \(bu
+The "\fB/dev/\fR" device-prefix is optional.
+.IP \(bu
+N.B.: this executable doesn't perform the backup; this role is defined in the \fBmakefile\fR provided as part of this product.
+.IP \(bu
+CAVEAT: all data previously recorded on the referenced device/partition, will be lost.
+.SH OPTIONS
+.TP
+\fB-v\fR
+Verbose: produces additional output where available.
+.TP
+\fB-d\fR \fIdevice-name\fR
+The name of the device to which the decrypted storage-volume should be temporarily mapped; this value has little significance.
+.br
+Default "\fBdecrypted\fR".
+.TP
+\fB-f\fR \fIfilesystem-label\fR
+The label to be assigned to the new filesystem.
+This will affect the directory under which the OS automatically mounts the filesystem.
+.br
+Default "\fBBackup\fR".
+.TP
+\fB-c\fR \fIchecksum-algorithm\fR
+The checksum-algorithm used by the new filesystem.
+.br
+See \fBman -s5 btrfs\fR for options.
+.br
+Default "\fBblake2\fR".
+.TP
+\fB-b\fR \fIsubvolume-name\fR
+The name of the subvolume in which to record the backup.
+.br
+Default "\fBDocuments\fR"; which merely reflects the location under my home directory in which I store personal files, but it doesn't need to.
+.TP
+\fB-s\fR \fIsubvolume-name\fR
+The name of the subvolume in which to record snapshots; this value has little significance.
+.br
+Default "\fB.snapshots\fR".
+.TP
+\fB-u\fR \fIuser-name\fR
+The name of the user whose data will be backed-up.
+.TP
+\fB-g\fR \fIgroup-name\fR
+The default group (as defined in "\fB/etc/passwd\fR") of the user whose data will be backed-up.
+.SS "Generic Program-information"
+.TP
+\fB-?\fR
+Displays help & then exits.
+.SH EXIT-STATUS
+\fB0\fR on success, & >\fB0\fR if an error occurs.
+.SH EXAMPLES
+.IP
+$ \fBformatForBackup.bash -v sdb\fR	# The typical scenario where \fB/dev/sda\fR contains the OS & \fBsdb\fR is then assigned to the first USB storage-device inserted. The '/dev/' path-prefix is assumed.
+.nf
+[sudo] password for root:
+WARNING!
+========
+This will overwrite data on /dev/sdb irrevocably.
+
+Are you sure? (Type 'yes' in capital letters): YES
+Enter passphrase for /dev/sdb: 
+Verify passphrase: 
+Enter passphrase for /dev/sdb: 
+btrfs-progs v5.14 
+See http://btrfs.wiki.kernel.org for more information.
+
+Label:              Backup
+UUID:               a6e9ef01-109f-408e-94d2-21fed649c75a
+Node size:          16384
+Sector size:        4096
+Filesystem size:    7.45GiB
+Block group profiles:
+  Data:             single            8.00MiB
+  Metadata:         DUP             256.00MiB
+  System:           DUP               8.00MiB
+SSD detected:       no
+Zoned device:       no
+Incompat features:  extref, skinny-metadata
+Runtime features:   
+Checksum:           blake2
+Number of devices:  1
+Devices:
+   ID        SIZE  PATH
+    1     7.45GiB  /dev/mapper/decrypted
+
+Create subvolume './Documents'
+Create subvolume './.snapshots'
+.fi
+.P
+N.B.: the root password is requested, then the encryption password is requested several times.
+.P
+On successful termination, the formatted device will be unmounted & can be safely removed.
+.P
+When next connected, the specified symmetric encryption password will be requested.
+.br
+CAVEAT: depending on your desktop-environment, a keyring-password may also be requested to enable the encryption password to be cached.
+.br
+Once decrypted & mounted, the product's \fBmakefile\fR can be installed to implement the backup-process,
+& this requires a local \fBexclusions.txt\fR file containing globs of any files which the user doesn't want included in the backup.
+.SH AUTHOR
+Written by Dr. Alistair Ward.
+.SH BUGS
+.SS "REPORTING BUGS"
+Report bugs to <\fBflashback@functionalley.com\fR>.
+.SH COPYRIGHT
+Copyright \(co 2023 Dr. Alistair Ward
+.PP
+This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+.PP
+This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+.PP
+You should have received a copy of the GNU General Public License along with this program. If not, see <\fBhttps://www.gnu.org/licenses/\fR>.
+.SH "SEE ALSO"
+.IP \(bu
+Home-page: <\fBhttps://functionalley.com/Storage/flashback.html\fR>.
+.IP \(bu
+<\fBhttps://github.com/functionalley/Flashback\fR>.
+.IP \(bu
+<\fBhttps://github.com/functionalley/Flashback/blob/master/makefile\fR>.
+.IP \(bu
+<\fBhttps://en.wikipedia.org/wiki/Btrfs\fR>.
+.IP \(bu
+<\fBhttps://en.wikipedia.org/wiki/Linux_Unified_Key_Setup\fR>.
