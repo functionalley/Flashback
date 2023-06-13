@@ -1,15 +1,15 @@
 # **Flashback**
 
-This is "**Flashback**", & is used to implement incremental backup.
+This is "**Flashback**", & is used to implement an incremental backup strategy.
 
 ## Installation
 
-The requirements are Bash, make, LUKS & Btrfs.
+The requirements are **Bash**, **make**, **rsync**, **LUKS** & **Btrfs**.
 
 ## Documentation
 
-The documentation is in the product's "**man/**" directory.
-See [Flashback](https://functionalley.com/Storage/flashback.html)
+See [Flashback](https://functionalley.com/Storage/flashback.html).
+Documentation for the executable is in the product's "**man/**" directory.
 
 ## License
 
