@@ -1,6 +1,6 @@
 #!/bin/bash
 # AUTHOR:	Dr. Alistair Ward
-# DESCRIPTION:	Part of <https://functionalley.com/Storage/flashback.html>.
+# DESCRIPTION:	Part of <https://functionalley.com/Storage/flashback.html>, where there's documentation for this executable.
 #		Creates an encrypted LUKS storage-volume using an interactively specified passphrase.
 #		Creates a Btrfs filesystem using the specified checksum-algorithm.
 #		Creates subvolumes to contain the backup & snapshots, owned by the specified user/group.
@@ -12,7 +12,7 @@
 declare		VERBOSE=''
 declare		NAME_DECRYPTED_STORAGE_VOLUME='decrypted'
 declare		LABEL_FILESYSTEM='Backup'
-declare		ALGORITHM_CHECKSUM='blake2'		# See 'man -s5 btrfs' for options.
+declare		ALGORITHM_CHECKSUM='blake2'	# See 'man -s5 btrfs' for options.
 declare		SUBVOLUME_BACKUP='Documents'
 declare		SUBVOLUME_SNAPSHOTS='.snapshots'
 declare		NAME_USER="${LOGNAME:-$(id --real --user --name)}"	# The current user's name.
@@ -28,8 +28,8 @@ operateOnDirectory (){
 	local -r	OWNER="$NAME_USER:$NAME_GROUP"
 
 	for S in $SUBVOLUME_BACKUP $SUBVOLUME_SNAPSHOTS; do
-		if ! sudo btrfs $VERBOSE subvolume create "$S"; then
-			echo "'btrfs subvolume create $S' failed" >&2
+		if ! sudo -- $BTRFS $VERBOSE subvolume create "$S"; then
+			echo "'$BTRFS subvolume create $S' failed" >&2
 
 			RETURN_CODE=1
 
@@ -37,7 +37,7 @@ operateOnDirectory (){
 		fi
 	done
 
-# Whilst these directories/subvolumes were created by root, the owner can be less privileged.
+# Whilst this filesystem was created by root, the owner can be less privileged.
 	if (( RETURN_CODE == 0 )) && ! sudo chown $VERBOSE -R -- "$OWNER" './'; then
 		echo "'chown -R $OWNER ./' failed" >&2
 
@@ -75,8 +75,8 @@ operateOnStorageVolume (){
 		echo "Block-device '$DECRYPTED_DEVICE' not found" >&2
 
 		RETURN_CODE=4
-	elif ! sudo mkfs.btrfs --csum="$ALGORITHM_CHECKSUM" --label="$LABEL_FILESYSTEM" -- "$DECRYPTED_DEVICE"; then	# Create & label a file-system on the storage-volume, referencing the newly mapped device-name.
-		echo "'mkfs.btrfs --csum=$ALGORITHM_CHECKSUM --label=$LABEL_FILESYSTEM $DECRYPTED_DEVICE' failed" >&2
+	elif ! sudo -- $MKFS_BTRFS --csum="$ALGORITHM_CHECKSUM" --label="$LABEL_FILESYSTEM" -- "$DECRYPTED_DEVICE"; then	# Create & label a file-system on the storage-volume, referencing the newly mapped device-name.
+		echo "'$MKFS_BTRFS --csum=$ALGORITHM_CHECKSUM --label=$LABEL_FILESYSTEM $DECRYPTED_DEVICE' failed" >&2
 
 		RETURN_CODE=5
 	elif [[ ! -d "$DIR_MOUNTPOINT" ]] && ! mkdir $VERBOSE -- "$DIR_MOUNTPOINT"; then	# Create a mount-point of arbitrary path.
@@ -111,12 +111,12 @@ operateOnBlockDevice (){
 		echo "Block-device='$BLOCK_DEVICE_NAME' not found" >&2
 
 		RETURN_CODE=9
-	elif ! sudo cryptsetup $VERBOSE --verify-passphrase --type="$TYPE_STORAGE_VOLUME" luksFormat "$BLOCK_DEVICE_NAME"; then	# Create a storage-volume on the device.
-		echo "'cryptsetup luksFormat $BLOCK_DEVICE_NAME' failed" >&2
+	elif ! sudo -- $CRYPTSETUP $VERBOSE --verify-passphrase --type="$TYPE_STORAGE_VOLUME" luksFormat "$BLOCK_DEVICE_NAME"; then	# Create a storage-volume on the device.
+		echo "'$CRYPTSETUP luksFormat $BLOCK_DEVICE_NAME' failed" >&2
 
 		RETURN_CODE=10
-	elif ! sudo cryptsetup $VERBOSE open --type="$TYPE_STORAGE_VOLUME" "$BLOCK_DEVICE_NAME" "$NAME_DECRYPTED_STORAGE_VOLUME"; then	# Define the passphrase for encryption & give the decrypted storage-volume a new device-name.
-		echo "'cryptsetup open $BLOCK_DEVICE_NAME $NAME_DECRYPTED_STORAGE_VOLUME' failed" >&2
+	elif ! sudo -- $CRYPTSETUP $VERBOSE open --type="$TYPE_STORAGE_VOLUME" "$BLOCK_DEVICE_NAME" "$NAME_DECRYPTED_STORAGE_VOLUME"; then	# Define the symmetrical encryption passphrase & map the decrypted storage-volume to a device-name.
+		echo "'$CRYPTSETUP open $BLOCK_DEVICE_NAME $NAME_DECRYPTED_STORAGE_VOLUME' failed" >&2
 
 		RETURN_CODE=11
 	else
@@ -125,10 +125,12 @@ operateOnBlockDevice (){
 		RETURN_CODE=$?
 
 # Close the mapped device.
-		if ! sudo cryptsetup $VERBOSE close "$NAME_DECRYPTED_STORAGE_VOLUME"; then
-			echo "'cryptsetup close $NAME_DECRYPTED_STORAGE_VOLUME' failed" >&2
+		if ! sudo -- $CRYPTSETUP $VERBOSE close "$NAME_DECRYPTED_STORAGE_VOLUME"; then
+			echo "'$CRYPTSETUP close $NAME_DECRYPTED_STORAGE_VOLUME' failed" >&2
 
 			(( RETURN_CODE == 0 )) && RETURN_CODE=12
+		elif [[ ! -z "$VERBOSE" ]]; then
+			echo "Device '$BLOCK_DEVICE_NAME' can now be safely removed."
 		fi
 	fi
 
@@ -136,7 +138,7 @@ operateOnBlockDevice (){
 }
 
 if (( $(id --user) == 0 )); then
-	echo 'This script was not designed to be run by the root user' >&2
+	echo 'This script was not designed to be run by root' >&2
 
 	EXIT_STATUS=-1
 else
@@ -191,9 +193,25 @@ else
 		else
 			declare -r	BLOCK_DEVICE_NAME="$PATH_PREFIX_DEVICE/${1#$PATH_PREFIX_DEVICE/}"
 
-			operateOnBlockDevice
+			if ! sudo --validate; then
+				echo '"sudo --validate" failed' >&2
+			else
 
-			EXIT_STATUS=$?
+# Check that the required executables exist.
+				declare -r	CRYPTSETUP=$(sudo which cryptsetup)
+				declare -r	MKFS_BTRFS=$(sudo which mkfs.btrfs)
+				declare -r	BTRFS=$(sudo which btrfs)
+
+				if [[ -z "$CRYPTSETUP" || -z "$MKFS_BTRFS" || -z "$BTRFS" ]]; then
+					echo 'Executable not found' >&2
+
+					EXIT_STATUS=-4
+				else
+					operateOnBlockDevice
+
+					EXIT_STATUS=$?
+				fi
+			fi
 		fi
 	fi
 fi
