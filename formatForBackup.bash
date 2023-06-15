@@ -35,24 +35,29 @@ operateOnFilesystem (){
 # Create a new filesystem, mount it, then operate on it.
 operateOnStorageVolume (){
 	local -i	RETURN_CODE
+	local -r	MKFS_BTRFS=$(sudo which mkfs.btrfs)
 	local -r	DECRYPTED_DEVICE="$PATH_PREFIX_DEVICE/mapper/$NAME_DECRYPTED_STORAGE_VOLUME"
 
-	if [[ ! -b "$DECRYPTED_DEVICE" ]]; then
-		echo "Block-device '$DECRYPTED_DEVICE' not found" >&2
+	if [[ -z "$MKFS_BTRFS" ]]; then
+		echo '"mkfs.btrfs" not found' >&2
 
 		RETURN_CODE=2
+	elif [[ ! -b "$DECRYPTED_DEVICE" ]]; then
+		echo "Block-device '$DECRYPTED_DEVICE' not found" >&2
+
+		RETURN_CODE=3
 	elif ! sudo -- $MKFS_BTRFS --csum="$ALGORITHM_CHECKSUM" --label="$LABEL_FILESYSTEM" -- "$DECRYPTED_DEVICE"; then	# Create & label a file-system on the storage-volume, referencing the newly mapped device-name.
 		echo "'$MKFS_BTRFS --csum=$ALGORITHM_CHECKSUM --label=$LABEL_FILESYSTEM $DECRYPTED_DEVICE' failed" >&2
 
-		RETURN_CODE=3
+		RETURN_CODE=4
 	elif [[ ! -d "$DIR_MOUNTPOINT" ]] && ! mkdir $VERBOSE -- "$DIR_MOUNTPOINT"; then	# Create a mount-point of arbitrary path.
 		echo "'mkdir $DIR_MOUNTPOINT' failed" >&2
 
-		RETURN_CODE=4
+		RETURN_CODE=5
 	elif ! sudo mount $VERBOSE -- "$DECRYPTED_DEVICE" "$DIR_MOUNTPOINT"; then	# Mount the decrypted storage-volume.
 		echo "'mount $DECRYPTED_DEVICE $DIR_MOUNTPOINT' failed" >&2
 
-		RETURN_CODE=5
+		RETURN_CODE=6
 	else
 		operateOnFilesystem
 
@@ -62,7 +67,7 @@ operateOnStorageVolume (){
 		if ! sudo umount $VERBOSE -- "$DIR_MOUNTPOINT"; then
 			echo "'umount $DIR_MOUNTPOINT' failed" >&2
 
-			(( RETURN_CODE == 0 )) && RETURN_CODE=6
+			(( RETURN_CODE == 0 )) && RETURN_CODE=7
 		fi
 	fi
 
@@ -72,20 +77,25 @@ operateOnStorageVolume (){
 # Define the encryption, open & decrypt the storage-volume, then operate on it.
 operateOnBlockDevice (){
 	local -i	RETURN_CODE
+	local -r	CRYPTSETUP=$(sudo which cryptsetup)
 	local -r	TYPE_STORAGE_VOLUME='luks2'
 
-	if [[ ! -b "$BLOCK_DEVICE_NAME" ]]; then
-		echo "Block-device='$BLOCK_DEVICE_NAME' not found" >&2
-
-		RETURN_CODE=7
-	elif ! sudo -- $CRYPTSETUP $VERBOSE --verify-passphrase --type="$TYPE_STORAGE_VOLUME" luksFormat "$BLOCK_DEVICE_NAME"; then	# Create a storage-volume on the device.
-		echo "'$CRYPTSETUP luksFormat $BLOCK_DEVICE_NAME' failed" >&2
+	if [[ -z "$CRYPTSETUP" ]]; then
+		echo '"cryptsetup" not found' >&2
 
 		RETURN_CODE=8
-	elif ! sudo -- $CRYPTSETUP $VERBOSE open --type="$TYPE_STORAGE_VOLUME" "$BLOCK_DEVICE_NAME" "$NAME_DECRYPTED_STORAGE_VOLUME"; then	# Define the symmetrical encryption passphrase & map the decrypted storage-volume to a device-name.
-		echo "'$CRYPTSETUP open $BLOCK_DEVICE_NAME $NAME_DECRYPTED_STORAGE_VOLUME' failed" >&2
+	elif [[ ! -b "$BLOCK_DEVICE_NAME" ]]; then
+		echo "Block-device='$BLOCK_DEVICE_NAME' not found" >&2
 
 		RETURN_CODE=9
+	elif ! sudo -- $CRYPTSETUP $VERBOSE --verify-passphrase --type="$TYPE_STORAGE_VOLUME" luksFormat "$BLOCK_DEVICE_NAME"; then	# Create a storage-volume on the device.
+		echo "'$CRYPTSETUP --type=$TYPE_STORAGE_VOLUME luksFormat $BLOCK_DEVICE_NAME' failed" >&2
+
+		RETURN_CODE=10
+	elif ! sudo -- $CRYPTSETUP $VERBOSE open --type="$TYPE_STORAGE_VOLUME" "$BLOCK_DEVICE_NAME" "$NAME_DECRYPTED_STORAGE_VOLUME"; then	# Define the symmetrical encryption passphrase & map the decrypted storage-volume to a device-name.
+		echo "'$CRYPTSETUP open --type=$TYPE_STORAGE_VOLUME $BLOCK_DEVICE_NAME $NAME_DECRYPTED_STORAGE_VOLUME' failed" >&2
+
+		RETURN_CODE=11
 	else
 		operateOnStorageVolume
 
@@ -95,7 +105,7 @@ operateOnBlockDevice (){
 		if ! sudo -- $CRYPTSETUP $VERBOSE close "$NAME_DECRYPTED_STORAGE_VOLUME"; then
 			echo "'$CRYPTSETUP close $NAME_DECRYPTED_STORAGE_VOLUME' failed" >&2
 
-			(( RETURN_CODE == 0 )) && RETURN_CODE=10
+			(( RETURN_CODE == 0 )) && RETURN_CODE=12
 		elif [[ ! -z "$VERBOSE" ]]; then
 			echo "Device '$BLOCK_DEVICE_NAME' can now be safely removed."
 		fi
@@ -149,7 +159,7 @@ else
 	if (( $EXIT_STATUS == 0 )); then
 		shift $(( $OPTIND - 1 ))	# Discard the processed command-line options.
 
-		if [[ -z $1 ]]; then
+		if [[ -z "$1" ]]; then
 			echo 'A device-name must be specified' >&2
 
 			EXIT_STATUS=-3
@@ -159,20 +169,9 @@ else
 			if ! sudo --validate; then
 				echo '"sudo --validate" failed' >&2
 			else
+				operateOnBlockDevice
 
-# Check that the required executables exist.
-				declare -r	CRYPTSETUP=$(sudo which cryptsetup)
-				declare -r	MKFS_BTRFS=$(sudo which mkfs.btrfs)
-
-				if [[ -z "$CRYPTSETUP" || -z "$MKFS_BTRFS" ]]; then
-					echo 'Executable not found' >&2
-
-					EXIT_STATUS=-4
-				else
-					operateOnBlockDevice
-
-					EXIT_STATUS=$?
-				fi
+				EXIT_STATUS=$?
 			fi
 		fi
 	fi
