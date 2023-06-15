@@ -30,6 +30,6 @@ scrub:
 
 # Start the next backup from scratch.
 zero: $(DIR_BACKUP) $(DIR_SNAPSHOTS)
-	@sudo btrfs subvolume list -o -s '$(DIR_SNAPSHOTS)' | sed -e 's/^.* path //' | xargs sudo btrfs subvolume delete;	# Delete any snapshots.
+	@sudo btrfs subvolume list -o -s '$(DIR_SNAPSHOTS)' | sed -e 's/^.* path //' | xargs --no-run-if-empty sudo btrfs subvolume delete;	# Delete any snapshots.
 	rm -rf -- $(DIR_BACKUP)/*;	# Delete the backup, leaving the subvolume in place.
 
