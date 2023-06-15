@@ -88,13 +88,13 @@ Devices:
     1     7.45GiB  /dev/mapper/decrypted
 .fi
 .P
-N.B.: the root password is requested, then the encryption password is requested several times.
+N.B.: the root-password is requested, then the encryption-passphrase is requested several times.
 .P
 On successful termination, the formatted device will be unmounted & can be safely removed.
 .P
-When next connected, the specified symmetric encryption password will be requested.
+When next connected, the specified symmetric encryption-passphrase will be requested.
 .br
-CAVEAT: depending on your desktop-environment, a keyring-password may also be requested to enable the encryption password to be cached.
+CAVEAT: depending on your desktop-environment, a keyring-password may also be requested to enable the encryption-passphrase to be cached.
 .br
 Once decrypted & mounted, the product's \fBmakefile\fR can be installed to implement the backup-process,
 & this requires a local "\fBexclusions.txt\fR" file containing globs matching those files which the user \fIdoesn't\fR want included in the backup.
@@ -113,11 +113,9 @@ This program is distributed in the hope that it will be useful, but WITHOUT ANY 
 You should have received a copy of the GNU General Public License along with this program. If not, see <\fBhttps://www.gnu.org/licenses/\fR>.
 .SH "SEE ALSO"
 .IP \(bu
-Home-page: <\fBhttps://functionalley.com/Storage/flashback.html\fR>.
+<\fBhttps://functionalley.com/Storage/flashback.html\fR>.
 .IP \(bu
 <\fBhttps://github.com/functionalley/Flashback\fR>.
-.IP \(bu
-<\fBhttps://github.com/functionalley/Flashback/blob/master/makefile\fR>.
 .IP \(bu
 <\fBhttps://en.wikipedia.org/wiki/Btrfs\fR>.
 .IP \(bu
