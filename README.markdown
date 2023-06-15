@@ -1,15 +1,15 @@
 # **Flashback**
 
-This is "**Flashback**", & is used to implement an incremental backup strategy.
+Implements an encrypted incremental backup strategy on a removable storage-device.
 
-## Installation
+## Prerequisites
 
-The requirements are **Bash**, **make**, **rsync**, **LUKS** & **Btrfs**.
+**Bash**, **cryptsetup**, **btrfs**, **make** & **rsync** will be used.
 
 ## Documentation
 
 See [Flashback](https://functionalley.com/Storage/flashback.html).
-Documentation for the executable is in the product's "**man/**" directory.
+Documentation for the executable is in the product's "**man/man1/**" directory.
 
 ## License
 

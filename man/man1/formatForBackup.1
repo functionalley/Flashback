@@ -7,24 +7,24 @@
 .PP
 Formats the specified storage-device with a \fBBtrfs\fR-filesystem on a \fBLUKS\fR storage-volume.
 .IP \(bu
-The use of \fBBtrfs\fR permits snapshots to be used to record previous versions of a backup.
+The use of \fBBtrfs\fR permits snapshots to be used to record previous versions of the backup.
 .IP \(bu
 The use of \fBLUKS\fR enables the whole device to be encrypted to safe-guard the user's data should the storage-device be lost.
 .IP \(bu
-\fIdevice-name\fR can be merely a partition on a storage-device rather than the whole device.
-.IP \(bu
+\fIdevice-name\fR can be a whole storage-device or merely a partition of one.
+.br
 The "\fB/dev/\fR" device-prefix is optional.
-.IP \(bu
-N.B.: this executable doesn't perform the backup; this role is defined in the \fBmakefile\fR provided as part of this product.
-.IP \(bu
+.br
 CAVEAT: all data previously recorded on the referenced device/partition, will be lost.
+.IP \(bu
+N.B.: this executable doesn't perform the backup; the product's \fBmakefile\fR defines this role.
 .SH OPTIONS
 .TP
 \fB-v\fR
 Verbose: produces additional output where available.
 .TP
 \fB-d\fR \fIdevice-name\fR
-The name of the device to which the decrypted storage-volume should be temporarily mapped; this value has little significance.
+The name of the device to which the decrypted storage-volume should be temporarily mapped (under \fB/dev/mapper/\fR); this value has little significance.
 .br
 Default "\fBdecrypted\fR".
 .TP
@@ -41,21 +41,11 @@ See \fBman -s5 btrfs\fR for options.
 .br
 Default "\fBblake2\fR".
 .TP
-\fB-b\fR \fIsubvolume-name\fR
-The name of the subvolume in which to record the backup.
-.br
-Default "\fBDocuments\fR"; which merely reflects the location under my home directory in which I store personal files, but it doesn't need to.
-.TP
-\fB-s\fR \fIsubvolume-name\fR
-The name of the subvolume in which to record snapshots; this value has little significance.
-.br
-Default "\fB.snapshots\fR".
-.TP
 \fB-u\fR \fIuser-name\fR
-The name of the user whose data will be backed-up.
+The name of the user who owns the backup & this filesystem.
 .TP
 \fB-g\fR \fIgroup-name\fR
-The default group (as defined in "\fB/etc/passwd\fR") of the user whose data will be backed-up.
+The default group-name of the user who owns the backup & this filesystem.
 .SS "Generic Program-information"
 .TP
 \fB-?\fR
@@ -64,7 +54,7 @@ Displays help & then exits.
 \fB0\fR on success, & >\fB0\fR if an error occurs.
 .SH EXAMPLES
 .IP
-$ \fBformatForBackup.bash -v sdb\fR	# The typical scenario where \fB/dev/sda\fR contains the OS & \fBsdb\fR is then assigned to the first USB storage-device inserted. The '/dev/' path-prefix is assumed.
+$ \fBformatForBackup.bash -v sdb\fR	# The typical scenario where \fB/dev/sda\fR contains the OS & the device-name \fBsdb\fR is then assigned to the first USB storage-device inserted.
 .nf
 [sudo] password for root:
 WARNING!
@@ -79,7 +69,7 @@ btrfs-progs v5.14
 See http://btrfs.wiki.kernel.org for more information.
 
 Label:              Backup
-UUID:               a6e9ef01-109f-408e-94d2-21fed649c75a
+UUID:               98ba67cf-31c7-4cb9-ba09-269a1464eaa4
 Node size:          16384
 Sector size:        4096
 Filesystem size:    7.45GiB
@@ -96,9 +86,6 @@ Number of devices:  1
 Devices:
    ID        SIZE  PATH
     1     7.45GiB  /dev/mapper/decrypted
-
-Create subvolume './Documents'
-Create subvolume './.snapshots'
 .fi
 .P
 N.B.: the root password is requested, then the encryption password is requested several times.
@@ -110,7 +97,7 @@ When next connected, the specified symmetric encryption password will be request
 CAVEAT: depending on your desktop-environment, a keyring-password may also be requested to enable the encryption password to be cached.
 .br
 Once decrypted & mounted, the product's \fBmakefile\fR can be installed to implement the backup-process,
-& this requires a local \fBexclusions.txt\fR file containing globs of any files which the user doesn't want included in the backup.
+& this requires a local "\fBexclusions.txt\fR" file containing globs matching those files which the user \fIdoesn't\fR want included in the backup.
 .SH AUTHOR
 Written by Dr. Alistair Ward.
 .SH BUGS

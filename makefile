@@ -1,25 +1,25 @@
 # AUTHOR:       Dr. Alistair Ward
 # DESCRIPTION:	Part of <https://functionalley.com/Storage/flashback.html>.
-# CAVEAT:       Directory-names used here must be synchronised with 'formatForBackup.bash'.
+# CAVEAT:       The value of DIR_MASTER may need to be changed to the directory under which your personal files are stored.
 
 .PHONY: backup scrub zero
 
-DIR_BACKUP	= Documents
-DIR_MASTER	= ~/$(DIR_BACKUP)
-DIR_SNAPSHOTS	= .snapshots
-FILE_EXCLUSIONS	= exclusions.txt
-TIME_FORMAT	= %Y-%m-%dT%H-%M-%S
+DIR_BACKUP	:= Documents
+DIR_SNAPSHOTS	:= .snapshots
+FILE_EXCLUSIONS	:= exclusions.txt
+TIME_FORMAT	:= %Y-%m-%dT%H-%M-%S
+DIR_MASTER	:= ~/$(DIR_BACKUP)
 
-# Create the missing file.
 $(FILE_EXCLUSIONS):
-	>$(FILE_EXCLUSIONS);
+	>$(FILE_EXCLUSIONS);	# Create an empty file.
 
-# Create a missing subvolume.
 $(DIR_BACKUP) $(DIR_SNAPSHOTS):
-	sudo btrfs subvolume create '$@';
+	sudo btrfs subvolume create '$@';	# Create a subvolume.
+	sudo chown "$$(id --real --user --name):$$(id --real --group --name)" '$@';	# Change the owner/group.
 
 # Create a backup.
 backup: $(FILE_EXCLUSIONS) $(DIR_BACKUP) $(DIR_SNAPSHOTS)
+	@[[ -d $(DIR_MASTER) ]];	# Confirm the existence of the master-directory.
 	[[ -z $$(find $(DIR_MASTER)/ -xtype l) ]];	# Check for dangling symlinks, which are probably unintended & which rsync can't follow.
 	@[[ -z $$(ls '$(DIR_BACKUP)') ]] || sudo btrfs subvolume snapshot -r -- '$(DIR_BACKUP)/' $(DIR_SNAPSHOTS)/$$(date '+$(TIME_FORMAT)');	# Create a readonly snapshot.
 	rsync --verbose --archive --update --exclude-from '$(FILE_EXCLUSIONS)' --delete --copy-links -- $(DIR_MASTER)/ './$(DIR_BACKUP)/'	# Sync the backup, following symlinks.

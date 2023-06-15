@@ -3,7 +3,6 @@
 # DESCRIPTION:	Part of <https://functionalley.com/Storage/flashback.html>, where there's documentation for this executable.
 #		Creates an encrypted LUKS storage-volume using an interactively specified passphrase.
 #		Creates a Btrfs filesystem using the specified checksum-algorithm.
-#		Creates subvolumes to contain the backup & snapshots, owned by the specified user/group.
 #		The filesystem is then unmounted & the storage-volume encrypted.
 # CAVEATS:	Creation of backups & snapshots falls outside the remit of this script.
 #		The encryption-passphrase must be entered several times.
@@ -13,54 +12,21 @@ declare		VERBOSE=''
 declare		NAME_DECRYPTED_STORAGE_VOLUME='decrypted'
 declare		LABEL_FILESYSTEM='Backup'
 declare		ALGORITHM_CHECKSUM='blake2'	# See 'man -s5 btrfs' for options.
-declare		SUBVOLUME_BACKUP='Documents'
-declare		SUBVOLUME_SNAPSHOTS='.snapshots'
 declare		NAME_USER="${LOGNAME:-$(id --real --user --name)}"	# The current user's name.
 declare		NAME_GROUP=$(id --real --group --name)	# The current user's default group.
 declare		DIR_MOUNTPOINT="/tmp/$LABEL_FILESYSTEM"
-declare -r	TYPE_STORAGE_VOLUME='luks2'
 declare -r	PATH_PREFIX_DEVICE='/dev'
-declare -i	EXIT_STATUS=0
 
-# Create the required subvolumes.
-operateOnDirectory (){
+# Operate on the decrypted filesystem.
+operateOnFilesystem (){
 	local -i	RETURN_CODE=0
 	local -r	OWNER="$NAME_USER:$NAME_GROUP"
 
-	for S in $SUBVOLUME_BACKUP $SUBVOLUME_SNAPSHOTS; do
-		if ! sudo -- $BTRFS $VERBOSE subvolume create "$S"; then
-			echo "'$BTRFS subvolume create $S' failed" >&2
-
-			RETURN_CODE=1
-
-			break;
-		fi
-	done
-
 # Whilst this filesystem was created by root, the owner can be less privileged.
-	if (( RETURN_CODE == 0 )) && ! sudo chown $VERBOSE -R -- "$OWNER" './'; then
-		echo "'chown -R $OWNER ./' failed" >&2
+	if ! sudo chown $VERBOSE -- "$OWNER" "$DIR_MOUNTPOINT"; then
+		echo "'chown $OWNER $DIR_MOUNTPOINT' failed" >&2
 
-		RETURN_CODE=2
-	fi
-
-	return $RETURN_CODE;
-}
-
-# Move into the mounted filesystem, then operate on the empty top-level directory.
-operateOnFilesystem (){
-	local -i	RETURN_CODE
-
-	if ! cd "$DIR_MOUNTPOINT"; then
-		echo "cd '$DIR_MOUNTPOINT' failed" >&2
-
-		RETURN_CODE=3
-	else
-		operateOnDirectory
-
-		RETURN_CODE=$?
-
-		cd - >/dev/null	# Exit the mounted directory.
+		RETURN_CODE=1
 	fi
 
 	return $RETURN_CODE;
@@ -74,19 +40,19 @@ operateOnStorageVolume (){
 	if [[ ! -b "$DECRYPTED_DEVICE" ]]; then
 		echo "Block-device '$DECRYPTED_DEVICE' not found" >&2
 
-		RETURN_CODE=4
+		RETURN_CODE=2
 	elif ! sudo -- $MKFS_BTRFS --csum="$ALGORITHM_CHECKSUM" --label="$LABEL_FILESYSTEM" -- "$DECRYPTED_DEVICE"; then	# Create & label a file-system on the storage-volume, referencing the newly mapped device-name.
 		echo "'$MKFS_BTRFS --csum=$ALGORITHM_CHECKSUM --label=$LABEL_FILESYSTEM $DECRYPTED_DEVICE' failed" >&2
 
-		RETURN_CODE=5
+		RETURN_CODE=3
 	elif [[ ! -d "$DIR_MOUNTPOINT" ]] && ! mkdir $VERBOSE -- "$DIR_MOUNTPOINT"; then	# Create a mount-point of arbitrary path.
 		echo "'mkdir $DIR_MOUNTPOINT' failed" >&2
 
-		RETURN_CODE=6
+		RETURN_CODE=4
 	elif ! sudo mount $VERBOSE -- "$DECRYPTED_DEVICE" "$DIR_MOUNTPOINT"; then	# Mount the decrypted storage-volume.
 		echo "'mount $DECRYPTED_DEVICE $DIR_MOUNTPOINT' failed" >&2
 
-		RETURN_CODE=7
+		RETURN_CODE=5
 	else
 		operateOnFilesystem
 
@@ -96,29 +62,30 @@ operateOnStorageVolume (){
 		if ! sudo umount $VERBOSE -- "$DIR_MOUNTPOINT"; then
 			echo "'umount $DIR_MOUNTPOINT' failed" >&2
 
-			(( RETURN_CODE == 0 )) && RETURN_CODE=8
+			(( RETURN_CODE == 0 )) && RETURN_CODE=6
 		fi
 	fi
 
 	return $RETURN_CODE;
 }
 
-# Define the encryption, open the encrypted storage-volume, then operate on it.
+# Define the encryption, open & decrypt the storage-volume, then operate on it.
 operateOnBlockDevice (){
 	local -i	RETURN_CODE
+	local -r	TYPE_STORAGE_VOLUME='luks2'
 
 	if [[ ! -b "$BLOCK_DEVICE_NAME" ]]; then
 		echo "Block-device='$BLOCK_DEVICE_NAME' not found" >&2
 
-		RETURN_CODE=9
+		RETURN_CODE=7
 	elif ! sudo -- $CRYPTSETUP $VERBOSE --verify-passphrase --type="$TYPE_STORAGE_VOLUME" luksFormat "$BLOCK_DEVICE_NAME"; then	# Create a storage-volume on the device.
 		echo "'$CRYPTSETUP luksFormat $BLOCK_DEVICE_NAME' failed" >&2
 
-		RETURN_CODE=10
+		RETURN_CODE=8
 	elif ! sudo -- $CRYPTSETUP $VERBOSE open --type="$TYPE_STORAGE_VOLUME" "$BLOCK_DEVICE_NAME" "$NAME_DECRYPTED_STORAGE_VOLUME"; then	# Define the symmetrical encryption passphrase & map the decrypted storage-volume to a device-name.
 		echo "'$CRYPTSETUP open $BLOCK_DEVICE_NAME $NAME_DECRYPTED_STORAGE_VOLUME' failed" >&2
 
-		RETURN_CODE=11
+		RETURN_CODE=9
 	else
 		operateOnStorageVolume
 
@@ -128,7 +95,7 @@ operateOnBlockDevice (){
 		if ! sudo -- $CRYPTSETUP $VERBOSE close "$NAME_DECRYPTED_STORAGE_VOLUME"; then
 			echo "'$CRYPTSETUP close $NAME_DECRYPTED_STORAGE_VOLUME' failed" >&2
 
-			(( RETURN_CODE == 0 )) && RETURN_CODE=12
+			(( RETURN_CODE == 0 )) && RETURN_CODE=10
 		elif [[ ! -z "$VERBOSE" ]]; then
 			echo "Device '$BLOCK_DEVICE_NAME' can now be safely removed."
 		fi
@@ -137,19 +104,19 @@ operateOnBlockDevice (){
 	return $RETURN_CODE;
 }
 
+declare -i	EXIT_STATUS=0
+
 if (( $(id --user) == 0 )); then
 	echo 'This script was not designed to be run by root' >&2
 
 	EXIT_STATUS=-1
 else
-	while getopts 'vd:f:c:b:s:u:g:' OPTION; do
+	while getopts 'vd:f:c:u:g:' OPTION; do
 		case "$OPTION" in
 			v) VERBOSE='--verbose' ;;
 			d) NAME_DECRYPTED_STORAGE_VOLUME="$OPTARG" ;;
 			f) LABEL_FILESYSTEM="$OPTARG" ;;
 			c) ALGORITHM_CHECKSUM="$OPTARG" ;;
-			b) SUBVOLUME_BACKUP="$OPTARG" ;;
-			s) SUBVOLUME_SNAPSHOTS="$OPTARG" ;;
 			u) NAME_USER="$OPTARG" ;;
 			g) NAME_GROUP="$OPTARG" ;;
 			?)
@@ -164,10 +131,6 @@ else
 					"Define the label for the new filesystem. Default '$LABEL_FILESYSTEM'"\
 					'[-c <checksum-algorithm>]'\
 					"Define the checksum-algorithm used by the new filesystem. Default '$ALGORITHM_CHECKSUM'"\
-					'[-b <location of backup>]'\
-					"The name of the subvolume under which the backup will be stored. Default '$SUBVOLUME_BACKUP'"\
-					'[-s <location of snapshots>]'\
-					"The name of the subvolume under which snapshots will be stored. Default '$SUBVOLUME_SNAPSHOTS'"\
 					'[-u <user-name>]'\
 					"Define the owner of the subvolumes. Default '$NAME_USER'"\
 					'[-g <group-name>]'\
@@ -200,9 +163,8 @@ else
 # Check that the required executables exist.
 				declare -r	CRYPTSETUP=$(sudo which cryptsetup)
 				declare -r	MKFS_BTRFS=$(sudo which mkfs.btrfs)
-				declare -r	BTRFS=$(sudo which btrfs)
 
-				if [[ -z "$CRYPTSETUP" || -z "$MKFS_BTRFS" || -z "$BTRFS" ]]; then
+				if [[ -z "$CRYPTSETUP" || -z "$MKFS_BTRFS" ]]; then
 					echo 'Executable not found' >&2
 
 					EXIT_STATUS=-4
