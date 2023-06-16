@@ -4,6 +4,7 @@
 
 .PHONY: backup scrub zero
 
+.DEFAULT_GOAL	:= backup
 DIR_BACKUP	:= Documents
 DIR_SNAPSHOTS	:= .snapshots
 FILE_EXCLUSIONS	:= exclusions.txt
