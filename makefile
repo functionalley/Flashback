@@ -4,15 +4,15 @@
 
 .PHONY: backup cullSnapshots scrub zero
 
-SHELL			:= /bin/bash
-.DEFAULT_GOAL		:= backup
-DIR_BACKUP		:= Documents
-DIR_SNAPSHOTS		:= .snapshots
-FILE_EXCLUSIONS		:= exclusions.txt
-TIME_FORMAT		:= %Y-%m-%dT%H-%M-%S
-DIR_MASTER		:= ~/$(DIR_BACKUP)
-MAX_SNAPSHOTS		:= 7
-VERBOSE			:= --verbose
+SHELL		:= /bin/bash
+.DEFAULT_GOAL	:= backup
+DIR_BACKUP	:= Documents
+DIR_SNAPSHOTS	:= .snapshots
+FILE_EXCLUSIONS	:= exclusions.txt
+TIME_FORMAT	:= %Y-%m-%dT%H-%M-%S
+DIR_MASTER	:= ~/$(DIR_BACKUP)
+MAX_SNAPSHOTS	:= 7
+VERBOSE		:= --verbose
 
 $(FILE_EXCLUSIONS):
 	>$(FILE_EXCLUSIONS);	# Create an empty file.
@@ -36,11 +36,9 @@ cullSnapshots:
 
 # Checksum the filesystem.
 scrub:
-	sudo btrfs $(VERBOSE) scrub start -B ./
+	sudo btrfs $(VERBOSE) scrub start -B ./;
 
 # Start the next backup from scratch.
 zero:
-	ls -d -- $(DIR_SNAPSHOTS)/* 2>/dev/null | xargs --no-run-if-empty sudo btrfs $(VERBOSE) subvolume delete --;
-	[[ ! -d $(DIR_SNAPSHOTS) ]] || sudo btrfs $(VERBOSE) subvolume delete -- '$(DIR_SNAPSHOTS)';
-	[[ ! -d $(DIR_BACKUP) ]] || sudo btrfs $(VERBOSE) subvolume delete -- '$(DIR_BACKUP)';
+	sudo btrfs subvolume list -t --sort='-rootid' ./ | sed -e '1,2d' -e 's/^.*\t//' | xargs --no-run-if-empty sudo btrfs $(VERBOSE) subvolume delete --;
 
