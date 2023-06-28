@@ -2,7 +2,7 @@
 # DESCRIPTION:	Part of <https://functionalley.com/Storage/flashback.html>.
 # CAVEAT:	The value of DIR_MASTER may need to be changed to the directory under which your personal files are stored.
 
-.PHONY: backup cullSnapshots scrub zero
+.PHONY: backup cullSnapshots scrub sync zero
 
 SHELL		:= /bin/bash
 .DEFAULT_GOAL	:= backup
@@ -37,6 +37,10 @@ cullSnapshots:
 # Checksum the filesystem.
 scrub:
 	sudo btrfs $(VERBOSE) scrub start -B ./;
+
+# Sync the filesystem to the storage-device.
+sync:
+	sudo btrfs $(VERBOSE) filesystem sync ./;
 
 # Start the next backup from scratch.
 zero:
