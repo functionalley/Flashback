@@ -19,7 +19,7 @@ $(FILE_EXCLUSIONS):
 
 $(DIR_BACKUP) $(DIR_SNAPSHOTS):
 	sudo btrfs $(VERBOSE) subvolume create -- '$@';	# Create a subvolume.
-	sudo chown $(VERBOSE) -- "$$(id --real --user --name):$$(id --real --group --name)" '$@';	# Change the owner/group.
+	sudo chown $(VERBOSE) -- "$$(id --real --user --name):" '$@';	# Change the owner/group.
 
 # Create a backup.
 backup: $(FILE_EXCLUSIONS) $(DIR_BACKUP) $(DIR_SNAPSHOTS)
