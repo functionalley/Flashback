@@ -5,19 +5,26 @@
 
 .PHONY: backup cullSnapshots scrub sync zero
 
-SHELL		:= /bin/bash
-.DEFAULT_GOAL	:= backup
-DIR_BACKUP	:= Documents
-DIR_SNAPSHOTS	:= .snapshots
-FILE_EXCLUSIONS	:= exclusions.txt
-TIME_FORMAT	:= %Y-%m-%dT%H-%M-%S
-DIR_MASTER	:= ~/$(DIR_BACKUP)
-MAX_SNAPSHOTS	:= 7
-VERBOSE		:= --verbose
-BTRFS		:= sudo btrfs $(VERBOSE)
+SHELL			:= /bin/bash
+.DEFAULT_GOAL		:= backup
+DIR_BACKUP		:= Documents
+DIR_SNAPSHOTS		:= .snapshots
+FILE_EXCLUSIONS		:= exclusions.txt
+TIME_FORMAT		:= %Y-%m-%dT%H-%M-%S
+DIR_MASTER		:= ~/$(DIR_BACKUP)
+MAX_SNAPSHOTS		:= 7
+VERBOSE			:= --verbose
+BTRFS			:= sudo btrfs $(VERBOSE)
+BTRFS_SUBVOLUME_LIST	:= sudo btrfs subvolume list -t
 
+# Confirm that the CWD is in a Btrfs filesystem.
 define CONFIRM_FILESYSTEM_TYPE       =
 [[ "$$(stat --file-system --format=%T ./)" == 'btrfs' ]]
+endef
+
+# Extract the paths of subvolumes from a Btrfs-subvolume listing.
+define SUBVOLUME_LIST_TO_PATHS	=
+sed -e '1,2d' -e 's/^.*\t//'
 endef
 
 $(FILE_EXCLUSIONS):
@@ -38,7 +45,7 @@ backup: $(FILE_EXCLUSIONS) $(DIR_BACKUP) $(DIR_SNAPSHOTS)
 # Delete excess snapshots, oldest first.
 cullSnapshots:
 	$(CONFIRM_FILESYSTEM_TYPE);
-	@declare -ra	SNAPSHOTS=( $$(ls -rd -- $(DIR_SNAPSHOTS)/* 2>/dev/null) );\
+	@declare -ra	SNAPSHOTS=( $$($(BTRFS_SUBVOLUME_LIST) -so --sort='-path' -- $(DIR_SNAPSHOTS)/ | $(SUBVOLUME_LIST_TO_PATHS)) );\
 	declare -i	i="$${#SNAPSHOTS[@]}";\
 	while (( --i >= $(MAX_SNAPSHOTS) )); do $(BTRFS) subvolume delete -- "$${SNAPSHOTS[$$i]}"; done
 
@@ -55,5 +62,5 @@ sync:
 # Start the next backup from scratch.
 zero:
 	$(CONFIRM_FILESYSTEM_TYPE);
-	sudo btrfs subvolume list -t --sort='-rootid' ./ | sed -e '1,2d' -e 's/^.*\t//' | xargs --no-run-if-empty $(BTRFS) subvolume delete --;
+	$(BTRFS_SUBVOLUME_LIST) --sort='-rootid' ./ | $(SUBVOLUME_LIST_TO_PATHS) | xargs --no-run-if-empty $(BTRFS) subvolume delete --;
 
