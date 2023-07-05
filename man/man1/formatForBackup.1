@@ -13,7 +13,7 @@ The use of \fBLUKS\fR enables the whole device to be encrypted to safe-guard the
 .IP \(bu
 \fIdevice-name\fR can be a whole storage-device or merely a partition of one.
 .br
-The "\fB/dev/\fR" device-prefix is optional.
+If the specified path is neither a block device nor absolute, then a prefix of "\fB/dev/\fR" will be assumed.
 .br
 CAVEAT: all data previously recorded on the referenced device/partition, will be lost.
 .IP \(bu
@@ -43,9 +43,6 @@ Default "\fBblake2\fR".
 .TP
 \fB-u\fR \fIuser-name\fR
 The name of the user who owns the backup & this filesystem.
-.TP
-\fB-g\fR \fIgroup-name\fR
-The default group-name of the user who owns the backup & this filesystem.
 .SS "Generic Program-information"
 .TP
 \fB-?\fR
@@ -54,7 +51,7 @@ Displays help & then exits.
 \fB0\fR on success, & >\fB0\fR if an error occurs.
 .SH EXAMPLES
 .IP
-$ \fBformatForBackup.bash -v sdb\fR	# The typical scenario where \fB/dev/sda\fR contains the OS & the device-name \fBsdb\fR is then assigned to the first USB storage-device inserted.
+$ \fBformatForBackup.bash -v sdb\fR	# The typical scenario where \fB/dev/sda\fR contains the OS & the device-name "\fBsdb\fR" is then assigned to the first USB storage-device inserted.
 .nf
 [sudo] password for root:
 WARNING!
@@ -92,7 +89,7 @@ N.B.: the root-password is requested, then the encryption-passphrase is requeste
 .P
 On successful termination, the formatted device will be unmounted & can be safely removed.
 .P
-When next connected, the specified symmetric encryption-passphrase will be requested.
+When next connected, the specified symmetric-encryption passphrase will be requested.
 .br
 CAVEAT: depending on your desktop-environment, a keyring-password may also be requested to enable the encryption-passphrase to be cached.
 .br

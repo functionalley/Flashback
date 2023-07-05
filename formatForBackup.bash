@@ -13,14 +13,13 @@ declare		NAME_DECRYPTED_STORAGE_VOLUME='decrypted'
 declare		LABEL_FILESYSTEM='Backup'
 declare		ALGORITHM_CHECKSUM='blake2'	# See 'man -s5 btrfs' for options.
 declare		NAME_USER="${LOGNAME:-$(id --real --user --name)}"	# The current user's name.
-declare		NAME_GROUP=$(id --real --group --name)	# The current user's default group.
 declare		DIR_MOUNTPOINT="/tmp/$LABEL_FILESYSTEM"
 declare -r	PATH_PREFIX_DEVICE='/dev'
 
 # Operate on the decrypted filesystem.
 operateOnFilesystem (){
 	local -i	RETURN_CODE=0
-	local -r	OWNER="$NAME_USER:$NAME_GROUP"
+	local -r	OWNER="$NAME_USER:"
 
 # Whilst this filesystem was created by root, the owner can be less privileged.
 	if ! sudo chown $VERBOSE -- "$OWNER" "$DIR_MOUNTPOINT"; then
@@ -121,14 +120,13 @@ if (( $(id --user) == 0 )); then
 
 	EXIT_STATUS=-1
 else
-	while getopts 'vd:f:c:u:g:' OPTION; do
+	while getopts 'vd:f:c:u:' OPTION; do
 		case "$OPTION" in
 			v) VERBOSE='--verbose' ;;
 			d) NAME_DECRYPTED_STORAGE_VOLUME="$OPTARG" ;;
 			f) LABEL_FILESYSTEM="$OPTARG" ;;
 			c) ALGORITHM_CHECKSUM="$OPTARG" ;;
 			u) NAME_USER="$OPTARG" ;;
-			g) NAME_GROUP="$OPTARG" ;;
 			?)
 				echo "Usage: $(basename $0)" 
 
@@ -136,15 +134,13 @@ else
 					'[-v]'\
 					'Verbose output'\
 					'[-d <name of decrypted device>]'\
-					"Define the device-name to which the decrypted storage-volume is temporarily mapped. Default '$NAME_DECRYPTED_STORAGE_VOLUME'"\
+					"Define the device-name to which the decrypted storage-volume is temporarily mapped; default '$NAME_DECRYPTED_STORAGE_VOLUME'"\
 					'[-f <filesystem-label>]'\
-					"Define the label for the new filesystem. Default '$LABEL_FILESYSTEM'"\
+					"Define the label for the new filesystem; default '$LABEL_FILESYSTEM'"\
 					'[-c <checksum-algorithm>]'\
-					"Define the checksum-algorithm used by the new filesystem. Default '$ALGORITHM_CHECKSUM'"\
+					"Define the checksum-algorithm used by the new filesystem; default '$ALGORITHM_CHECKSUM'"\
 					'[-u <user-name>]'\
-					"Define the owner of the subvolumes. Default '$NAME_USER'"\
-					'[-g <group-name>]'\
-					"Define the group of the subvolumes. Default '$NAME_GROUP'"\
+					"Define the owner of the subvolumes; default '$NAME_USER'"\
 					'<name of block-device/partition>'\
 					'CAVEAT: to be overwritten'
 
@@ -164,7 +160,11 @@ else
 
 			EXIT_STATUS=-3
 		else
-			declare -r	BLOCK_DEVICE_NAME="$PATH_PREFIX_DEVICE/${1#$PATH_PREFIX_DEVICE/}"
+			if [[ -b "$1" || "$1" =~ ^/ ]]; then
+				declare -r BLOCK_DEVICE_NAME=$1
+			else
+				declare -r BLOCK_DEVICE_NAME="$PATH_PREFIX_DEVICE/$1"
+			fi
 
 			if ! sudo --validate; then
 				echo '"sudo --validate" failed' >&2

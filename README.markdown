@@ -4,12 +4,14 @@ Implements an encrypted incremental backup strategy on a removable storage-devic
 
 ## Prerequisites
 
-**Bash**, **cryptsetup**, **btrfs**, **make** & **rsync** will be used.
+**Bash**, **cryptsetup**, **Btrfs**, **GNU make** & **rsync** will be used.
 
 ## Documentation
 
-See [Flashback](https://functionalley.com/Storage/flashback.html).
-Documentation for the executable is in the product's "**man/man1/**" directory.
+A **Bash**-script is provided to format the device with a **Btrfs**-filesystem on a **LUKS** storage-volume,
+documentation for which is included in the product's "**man/man1/**" directory.
+A **makefile** is provided to then manage the incremental backup using **rsync**.
+See [Flashback](https://functionalley.com/Storage/flashback.html) for a more detailed description.
 
 ## License
 
